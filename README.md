@@ -15,5 +15,6 @@ A resume evaluator system is able to evaluate resumes from candidates (PDF forma
 ## Test
 If you want to run it in English mode, run:
 - ```python main.py --language="english"```
+
 If you want to run it in Spanish mode, run:
 - ```python main.py --language="spanish"```

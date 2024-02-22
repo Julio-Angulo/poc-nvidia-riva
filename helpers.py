@@ -10,8 +10,8 @@ import IPython.display as ipd
 import grpc
 import riva.client
 import numpy as np
-from  scipy.io import wavfile
-import calendar 
+from scipy.io import wavfile
+import calendar
 import time
 import datetime
 import os
@@ -46,6 +46,7 @@ def print_pdf_text(url=None, file_path=None):
         os.remove(temp_file_path)
 
     return cleaned_text
+
 
 def pinfo_extractor(resume_text):
     context = f"Resume text: {resume_text}"
@@ -107,9 +108,12 @@ def pinfo_extractor(resume_text):
     # print(data_dict, "\n")
     return data_dict
 
+
 def add_data_to_db(input_dict):
     # Create the SQLAlchemy engine
-    engine = create_engine("mysql://root:password@localhost:3306/resume_evaluator", future=True)
+    engine = create_engine(
+        "mysql://root:password@localhost:3306/resume_evaluator", future=True
+    )
 
     # Create the SQL query for inserting the data
     query_sql = f"""
@@ -121,6 +125,7 @@ def add_data_to_db(input_dict):
         connection.execute(text(query_sql))
         connection.commit()
     # print("\nData Written to resumes_profile_data table")
+
 
 def evaluate_candidates(query, language):
     result = search_resumes(query)
@@ -134,7 +139,7 @@ def evaluate_candidates(query, language):
         technologies = technologies.replace("[", "")
         technologies = technologies.replace("]", "")
         context = f"Resume text: {resume_str[3]}"
-        
+
         question = ""
         if language == "english":
             question = f"What percentage of the job requirements does the candidate meet for the following job description? answer in 3 lines only and be effcient while answering: {query}."
@@ -142,7 +147,7 @@ def evaluate_candidates(query, language):
             question = f"What percentage of the job requirements does the candidate meet for the following job description? answer in 3 lines only, be effcient while answering, and answer it in spanish: {query}."
         else:
             print("Language not supported!")
-                       
+
         prompt = f"""
             Read below candidate information about the candidate:
             {context} And, the next skills: {skills}. And, next technologies: {technologies}
@@ -173,6 +178,7 @@ def evaluate_candidates(query, language):
         )  # Append the name and response_text to the responses list
     return responses
 
+
 def search_resumes(query):
     query_sql = f"""
             SELECT names, skills, technologies, resume_summary FROM resumes_profile_data;
@@ -185,6 +191,7 @@ def search_resumes(query):
     engine.dispose()
     return result
 
+
 def clean_database():
     query_sql = f"""
             DELETE FROM resumes_profile_data;
@@ -195,7 +202,8 @@ def clean_database():
     connection.execute(text(query_sql))
     connection.close()
     engine.dispose()
-    
+
+
 def asr_request(language, audio_paths):
     if language == "english":
         path = audio_paths[0]
@@ -205,36 +213,39 @@ def asr_request(language, audio_paths):
         language_code = "es-US"
     else:
         print("Language not supported!")
-    
+
     # Create a Riva Client
-    auth = riva.client.Auth(uri='localhost:50051')
+    auth = riva.client.Auth(uri="localhost:50051")
     riva_asr = riva.client.ASRService(auth)
-    
-    # Read audio         
-    with io.open(path, 'rb') as fh:
+
+    # Read audio
+    with io.open(path, "rb") as fh:
         content = fh.read()
     ipd.Audio(path)
-    
+
     # Set up an offlinerecognition request
     config = riva.client.RecognitionConfig()
-    config.language_code = language_code # Language code of the audio clip
-    config.max_alternatives = 1    # How many top-N hypotheses to return
-    config.enable_automatic_punctuation = True # Add punctuation when end of VAD detected
-    config.audio_channel_count = 1 
-    
+    config.language_code = language_code  # Language code of the audio clip
+    config.max_alternatives = 1  # How many top-N hypotheses to return
+    config.enable_automatic_punctuation = (
+        True  # Add punctuation when end of VAD detected
+    )
+    config.audio_channel_count = 1
+
     response = riva_asr.offline_recognize(content, config)
     asr_best_transcript = response.results[0].alternatives[0].transcript
     # print("ASR Transcript:", asr_best_transcript)
-    
+
     return asr_best_transcript
-    
+
+
 def tts_request(language, text):
     timestamp = calendar.timegm(time.gmtime())
     human_readable = datetime.datetime.fromtimestamp(timestamp).isoformat()
-    
+
     path = os.getcwd()
     path_output = path + "/audio_output/"
-    
+
     if language == "english":
         voice_name = "English-US.Male-1"
         language_code = "en-US"
@@ -247,20 +258,20 @@ def tts_request(language, text):
         audio_output = f"{path_output}spanish_{text[0]}_{str(human_readable)}.wav"
     else:
         print("Language not supported!")
-    
+
     # Create a Riva Client
-    auth = riva.client.Auth(uri='localhost:50051')
+    auth = riva.client.Auth(uri="localhost:50051")
     riva_tts = riva.client.SpeechSynthesisService(auth)
-    
+
     # Setup the TTS API parameters
     sample_rate_hz = 44100
-    req = { 
-            "language_code"  : language_code,
-            "encoding"       : riva.client.AudioEncoding.LINEAR_PCM , 
-            "sample_rate_hz" : sample_rate_hz,                         
-            "voice_name"     : voice_name
+    req = {
+        "language_code": language_code,
+        "encoding": riva.client.AudioEncoding.LINEAR_PCM,
+        "sample_rate_hz": sample_rate_hz,
+        "voice_name": voice_name,
     }
-    
+
     # Make a request to the Riva server
     req["text"] = text_input
     resp = riva_tts.synthesize(**req)
